@@ -1,6 +1,6 @@
 # WordPress URL Utilities
 
-Comprehensive URL manipulation, validation, and connectivity checking for WordPress. Clean APIs for single URLs, bulk operations, and HTTP status checking.
+Comprehensive URL manipulation, validation, connectivity checking, and tracking parameter removal for WordPress. Clean APIs for single URLs, bulk operations, HTTP status checking, and privacy-focused URL cleaning.
 
 ## Installation
 
@@ -84,6 +84,43 @@ $clean_urls = URLs::sanitize( $url_list );
 $html_safe_urls = URLs::sanitize_for_html( $url_list );
 ```
 
+### URL Tracking Parameter Removal
+
+```php
+use ArrayPress\URLUtils\Cleaner;
+
+// Remove all tracking parameters (300+ supported)
+$dirty_url = 'https://example.com/page?utm_source=facebook&fbclid=abc123&gclid=def456&product_id=789';
+$clean_url = Cleaner::strip( $dirty_url );
+// Result: https://example.com/page?product_id=789
+
+// Bulk cleaning
+$urls = [
+    'https://shop.com/product?gclid=abc123&category=shoes',
+    'https://blog.com/post?fbclid=def456&author=john&twclid=xyz'
+];
+$clean_urls = Cleaner::strip_multiple( $urls );
+
+// Complete sanitization pipeline (validate, clean, deduplicate)
+$messy_urls = [
+    'https://example.com?utm_source=test&fbclid=123',
+    'invalid-url',
+    'https://example.com',  // duplicate after cleaning
+    'https://shop.com?gclid=456&category=shoes'
+];
+$sanitized = Cleaner::sanitize( $messy_urls );
+// Result: ['https://example.com', 'https://shop.com?category=shoes']
+
+// Custom parameters and whitelisting
+$custom_clean = Cleaner::strip( $url, ['my_tracker', 'internal_ref'] );
+$keep_important = Cleaner::strip( $url, [], ['page', 'category', 'search'] );
+
+// Check for tracking parameters
+if ( Cleaner::has_tracking( $url ) ) {
+    echo 'This URL contains tracking parameters';
+}
+```
+
 ### HTTP Connectivity Checking
 
 ```php
@@ -109,9 +146,30 @@ Checker::set_default_timeout( 15 ); // seconds
 
 ## Common Use Cases
 
-**Form validation:**
+**Privacy-focused URL sharing:**
 ```php
-$website = URL::sanitize( $_POST['website'] );
+// Clean URLs before sharing to protect user privacy
+$share_url = Cleaner::strip( $_POST['url'] );
+$safe_url = URL::sanitize_for_html( $share_url );
+```
+
+**Content management:**
+```php
+// Clean tracking from imported content
+function clean_imported_content( $content ) {
+    $urls = URLs::extract( $content );
+    foreach ( $urls as $url ) {
+        $clean_url = Cleaner::strip( $url );
+        $content = str_replace( $url, $clean_url, $content );
+    }
+    return $content;
+}
+```
+
+**Form validation with cleaning:**
+```php
+$website = Cleaner::strip( $_POST['website'] );
+$website = URL::sanitize( $website );
 if ( ! URL::is_valid( $website ) ) {
     $errors[] = 'Invalid website URL';
 }
@@ -131,7 +189,8 @@ foreach ( $links as $link ) {
 ```php
 $found_urls = URLs::extract( $post_content );
 $external_urls = URLs::filter_by_location( $found_urls, 'external' );
-$safe_urls = URLs::sanitize_for_html( $external_urls );
+$clean_urls = Cleaner::strip_multiple( $external_urls );
+$safe_urls = URLs::sanitize_for_html( $clean_urls );
 ```
 
 **UTM campaign tracking:**
@@ -142,6 +201,53 @@ $campaign_url = URL::add_utm_smart( 'https://mysite.com/sale', [
 ]);
 // Automatically adds medium based on WordPress context
 ```
+
+**WordPress Integration Examples:**
+```php
+// Clean URLs when saving posts
+function clean_post_urls( $content ) {
+    return Cleaner::clean_content( $content );
+}
+add_filter( 'the_content', 'clean_post_urls' );
+
+// Clean user-submitted URLs
+function process_user_url( $url ) {
+    if ( URL::is_valid( $url ) ) {
+        $clean_url = Cleaner::strip( $url );
+        return URL::sanitize( $clean_url );
+    }
+    return '';
+}
+
+// Combine operations for complete URL processing
+$processed_url = URL::make_relative(
+    URL::to_https(
+        Cleaner::strip( $original_url )
+    )
+);
+```
+
+## Tracking Parameter Coverage
+
+The `Cleaner` class removes **300+ tracking parameters** from:
+
+**Major Platforms:**
+- Google (Analytics, Ads, DoubleClick)
+- Facebook, Instagram, Twitter/X, TikTok, LinkedIn, Snapchat
+- Amazon, eBay, AliExpress, Walmart, Best Buy
+- YouTube, Spotify, Netflix, Twitch
+
+**Marketing Tools:**
+- Email marketing (Mailchimp, HubSpot, Klaviyo)
+- Analytics (Matomo, Piwik, Adobe)
+- Affiliate networks (Impact Radius, Commission Junction)
+- Chinese platforms (Taobao, Bilibili, Xiaohongshu)
+
+**News & Media:**
+- NY Times, Forbes, Reuters, TechCrunch, BBC, CNN
+
+**International:**
+- Yandex, Seznam, German/French/Czech sites
 
 ## All Methods
 
@@ -157,6 +263,14 @@ $campaign_url = URL::add_utm_smart( 'https://mysite.com/sale', [
 - `filter_by_location()`, `filter_by_protocol()`, `filter_by_type()`
 - `to_https()`, `make_relative()`, `get_domains()`
 - `extract()`, `remove_duplicates()`, `sanitize()`
+
+### Cleaner Class ⭐ **NEW**
+- `strip()` - Remove tracking parameters from single URL
+- `strip_multiple()` - Bulk tracking parameter removal
+- `sanitize()` - Complete pipeline: validate, clean, deduplicate
+- `has_tracking()` - Check if URL contains tracking parameters
+- `add_params()` - Extend tracking parameter list
+- `get_params()` - View all tracked parameters
 
 ### Checker Class
 - `is_reachable()`, `get_status_code()`, `get_final_url()`

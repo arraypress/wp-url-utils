@@ -155,6 +155,29 @@ class URL {
 	}
 
 	/**
+	 * Add or replace the scheme in a URL.
+	 *
+	 * @param string $url    The URL to modify.
+	 * @param string $scheme The scheme to add/replace (http, https).
+	 *
+	 * @return string URL with the specified scheme.
+	 */
+	public static function add_scheme( string $url, string $scheme = 'https' ): string {
+		// Validate scheme
+		if ( ! in_array( $scheme, [ 'http', 'https' ], true ) ) {
+			$scheme = 'https';
+		}
+
+		// If no scheme, add the specified one
+		if ( ! preg_match( '/^https?:\/\//', $url ) ) {
+			return $scheme . '://' . $url;
+		}
+
+		// Replace existing scheme
+		return preg_replace( '/^https?:/', $scheme . ':', $url );
+	}
+
+	/**
 	 * Convert URL to HTTPS.
 	 *
 	 * @param string $url The URL to convert.
@@ -162,7 +185,7 @@ class URL {
 	 * @return string HTTPS URL.
 	 */
 	public static function to_https( string $url ): string {
-		return preg_replace( '/^http:/', 'https:', $url );
+		return self::add_scheme( $url, 'https' );
 	}
 
 	/**
@@ -173,7 +196,7 @@ class URL {
 	 * @return string HTTP URL.
 	 */
 	public static function to_http( string $url ): string {
-		return preg_replace( '/^https:/', 'http:', $url );
+		return self::add_scheme( $url, 'http' );
 	}
 
 	/**
@@ -442,6 +465,101 @@ class URL {
 	}
 
 	/**
+	 * Check if URL is from a video platform.
+	 *
+	 * @param string $url The URL to check.
+	 *
+	 * @return bool True if video platform URL.
+	 */
+	public static function is_video_platform( string $url ): bool {
+		$patterns = [
+			// YouTube
+			'/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)/',
+			'/(?:m\.youtube\.com\/watch\?v=)/',
+
+			// Vimeo
+			'/(?:vimeo\.com\/|player\.vimeo\.com\/)/',
+
+			// TikTok
+			'/(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)/',
+			'/(?:m\.tiktok\.com\/)/',
+
+			// Instagram
+			'/(?:instagram\.com\/(?:p|reel|tv)\/|instagr\.am\/p\/)/',
+
+			// Facebook/Meta
+			'/(?:facebook\.com\/watch\?v=|fb\.watch\/|facebook\.com\/.*\/videos\/)/',
+			'/(?:m\.facebook\.com\/watch\/)/',
+
+			// Twitch
+			'/(?:twitch\.tv\/videos\/|clips\.twitch\.tv\/)/',
+			'/(?:m\.twitch\.tv\/)/',
+
+			// Twitter/X
+			'/(?:twitter\.com\/.*\/status\/.*\/video\/|x\.com\/.*\/status\/)/',
+
+			// Dailymotion
+			'/(?:dailymotion\.com\/video\/|dai\.ly\/)/',
+
+			// Rumble
+			'/(?:rumble\.com\/|rumble\.com\/embed\/)/',
+
+			// BitChute
+			'/(?:bitchute\.com\/video\/)/',
+
+			// Wistia
+			'/(?:wistia\.com\/medias\/|.*\.wistia\.com\/)/',
+
+			// JW Player
+			'/(?:jwplayer\.com\/)/',
+
+			// Brightcove
+			'/(?:players\.brightcove\.net\/)/',
+
+			// Vidyard
+			'/(?:vidyard\.com\/watch\/)/',
+
+			// Loom
+			'/(?:loom\.com\/share\/)/',
+
+			// Streamable
+			'/(?:streamable\.com\/)/',
+
+			// Giphy (videos)
+			'/(?:giphy\.com\/gifs\/|media\.giphy\.com\/)/',
+
+			// Reddit (videos)
+			'/(?:v\.redd\.it\/)/',
+
+			// LinkedIn (videos)
+			'/(?:linkedin\.com\/posts\/.*-activity-.*video)/',
+
+			// Coub
+			'/(?:coub\.com\/view\/)/',
+
+			// 9GAG (videos)
+			'/(?:9gag\.com\/gag\/)/',
+
+			// Metacafe
+			'/(?:metacafe\.com\/watch\/)/',
+
+			// Internet Archive
+			'/(?:archive\.org\/details\/)/',
+
+			// Chinese platforms
+			'/(?:youku\.com\/|v\.youku\.com\/)/',
+			'/(?:bilibili\.com\/video\/|b23\.tv\/)/',
+			'/(?:weibo\.com\/tv\/show\/)/',
+
+			// Other international
+			'/(?:ok\.ru\/video\/)/',
+			'/(?:vk\.com\/video)/',
+		];
+
+		return self::matches_patterns( $url, $patterns );
+	}
+
+	/**
 	 * Check if URL is an audio file.
 	 *
 	 * @param string $url        The URL to check.
@@ -483,6 +601,219 @@ class URL {
 		$extension        = self::get_extension( $url );
 
 		return in_array( $extension, $check_extensions, true );
+	}
+
+	/**
+	 * Check if URL is from an audio platform.
+	 *
+	 * @param string $url The URL to check.
+	 *
+	 * @return bool True if audio platform URL.
+	 */
+	public static function is_audio_platform( string $url ): bool {
+		$patterns = [
+			// Spotify
+			'/(?:spotify\.com\/track\/|open\.spotify\.com\/(?:track|episode|show)\/|spotify\.link\/)/',
+
+			// SoundCloud
+			'/(?:soundcloud\.com\/|on\.soundcloud\.com\/)/',
+
+			// Apple Music/Podcasts
+			'/(?:music\.apple\.com\/|podcasts\.apple\.com\/)/',
+
+			// YouTube Music
+			'/(?:music\.youtube\.com\/)/',
+
+			// Bandcamp
+			'/(?:.*\.bandcamp\.com\/|bandcamp\.com\/)/',
+
+			// Anchor/Spotify for Podcasters
+			'/(?:anchor\.fm\/)/',
+
+			// Google Podcasts
+			'/(?:podcasts\.google\.com\/)/',
+
+			// AudioMack
+			'/(?:audiomack\.com\/)/',
+
+			// Deezer
+			'/(?:deezer\.com\/track\/|deezer\.page\.link\/)/',
+
+			// Tidal
+			'/(?:tidal\.com\/track\/|tidal\.com\/album\/)/',
+
+			// Amazon Music
+			'/(?:music\.amazon\.com\/)/',
+
+			// Pandora
+			'/(?:pandora\.com\/)/',
+
+			// Last.fm
+			'/(?:last\.fm\/music\/)/',
+
+			// Mixcloud
+			'/(?:mixcloud\.com\/)/',
+
+			// Podcast platforms
+			'/(?:podcasts\.google\.com\/|castbox\.fm\/|player\.fm\/)/',
+			'/(?:overcast\.fm\/|pocketcasts\.com\/)/',
+			'/(?:stitcher\.com\/podcast\/|tunein\.com\/)/',
+			'/(?:iheart\.com\/podcast\/|podbean\.com\/)/',
+			'/(?:spreaker\.com\/|buzzsprout\.com\/)/',
+
+			// Radio platforms
+			'/(?:radiocut\.fm\/|radio\.com\/)/',
+			'/(?:iheart\.com\/live\/|tunein\.com\/radio\/)/',
+
+			// Audioboom
+			'/(?:audioboom\.com\/)/',
+
+			// Vocaroo
+			'/(?:vocaroo\.com\/)/',
+
+			// Clyp
+			'/(?:clyp\.it\/)/',
+
+			// Archive.org audio
+			'/(?:archive\.org\/details\/.*\.(mp3|flac|ogg))/',
+
+			// Chinese platforms
+			'/(?:music\.163\.com\/|y\.qq\.com\/)/',
+			'/(?:kugou\.com\/|kuwo\.cn\/)/',
+		];
+
+		return self::matches_patterns( $url, $patterns );
+	}
+
+	/**
+	 * Check if URL is from a social media platform.
+	 *
+	 * @param string $url The URL to check.
+	 *
+	 * @return bool True if social media platform URL.
+	 */
+	public static function is_social_platform( string $url ): bool {
+		$patterns = [
+			// Facebook/Meta
+			'/(?:facebook\.com\/|fb\.com\/|m\.facebook\.com\/|fb\.me\/)/',
+
+			// Twitter/X
+			'/(?:twitter\.com\/|x\.com\/|t\.co\/|mobile\.twitter\.com\/)/',
+
+			// Instagram
+			'/(?:instagram\.com\/|instagr\.am\/)/',
+
+			// LinkedIn
+			'/(?:linkedin\.com\/|lnkd\.in\/)/',
+
+			// TikTok
+			'/(?:tiktok\.com\/|vm\.tiktok\.com\/|tiktok\.com\/t\/|m\.tiktok\.com\/)/',
+
+			// Snapchat
+			'/(?:snapchat\.com\/|snap\.com\/)/',
+
+			// Reddit
+			'/(?:reddit\.com\/|redd\.it\/|old\.reddit\.com\/)/',
+
+			// Pinterest
+			'/(?:pinterest\.com\/|pin\.it\/|pinterest\.ca\/|pinterest\.co\.uk\/)/',
+
+			// Discord
+			'/(?:discord\.gg\/|discord\.com\/|discordapp\.com\/)/',
+
+			// WhatsApp
+			'/(?:wa\.me\/|api\.whatsapp\.com\/|web\.whatsapp\.com\/)/',
+
+			// Telegram
+			'/(?:t\.me\/|telegram\.me\/|telegram\.dog\/)/',
+
+			// YouTube (social aspects)
+			'/(?:youtube\.com\/c\/|youtube\.com\/user\/|youtube\.com\/channel\/)/',
+
+			// Tumblr
+			'/(?:tumblr\.com\/|.*\.tumblr\.com\/)/',
+
+			// Mastodon (various instances)
+			'/(?:mastodon\.social\/|mastodon\.online\/|.*\.social\/@)/',
+
+			// Threads
+			'/(?:threads\.net\/)/',
+
+			// BeReal
+			'/(?:bere\.al\/)/',
+
+			// Clubhouse
+			'/(?:clubhouse\.com\/)/',
+
+			// Twitch (social aspects)
+			'/(?:twitch\.tv\/(?!videos)[\w-]+$)/',
+
+			// VKontakte
+			'/(?:vk\.com\/|vkontakte\.ru\/)/',
+
+			// Weibo
+			'/(?:weibo\.com\/|weibo\.cn\/)/',
+
+			// WeChat
+			'/(?:wechat\.com\/)/',
+
+			// LINE
+			'/(?:line\.me\/)/',
+
+			// Viber
+			'/(?:viber\.com\/)/',
+
+			// QQ
+			'/(?:qq\.com\/)/',
+
+			// Nextdoor
+			'/(?:nextdoor\.com\/)/',
+
+			// Medium (social aspects)
+			'/(?:medium\.com\/@|.*\.medium\.com\/)/',
+
+			// Quora
+			'/(?:quora\.com\/)/',
+
+			// Stack Overflow
+			'/(?:stackoverflow\.com\/users\/)/',
+
+			// Flickr
+			'/(?:flickr\.com\/photos\/)/',
+
+			// DeviantArt
+			'/(?:deviantart\.com\/|.*\.deviantart\.com\/)/',
+
+			// Behance
+			'/(?:behance\.net\/)/',
+
+			// Dribbble
+			'/(?:dribbble\.com\/)/',
+
+			// Foursquare/Swarm
+			'/(?:foursquare\.com\/|swarmapp\.com\/)/',
+
+			// Meetup
+			'/(?:meetup\.com\/)/',
+
+			// Eventbrite
+			'/(?:eventbrite\.com\/)/',
+
+			// Yelp
+			'/(?:yelp\.com\/)/',
+
+			// Goodreads
+			'/(?:goodreads\.com\/)/',
+
+			// MySpace (legacy)
+			'/(?:myspace\.com\/)/',
+
+			// Chinese platforms
+			'/(?:xiaohongshu\.com\/|douyin\.com\/)/',
+			'/(?:zhihu\.com\/|baidu\.com\/tieba\/)/',
+		];
+
+		return self::matches_patterns( $url, $patterns );
 	}
 
 	/**
@@ -534,6 +865,24 @@ class URL {
 	 */
 	public static function sanitize_for_html( string $url ): string {
 		return esc_url( $url );
+	}
+
+	/**
+	 * Helper method to check if URL matches any of the given patterns.
+	 *
+	 * @param string $url      The URL to check.
+	 * @param array  $patterns Array of regex patterns.
+	 *
+	 * @return bool True if URL matches any pattern.
+	 */
+	private static function matches_patterns( string $url, array $patterns ): bool {
+		foreach ( $patterns as $pattern ) {
+			if ( preg_match( $pattern, $url ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 }
