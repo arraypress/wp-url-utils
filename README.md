@@ -1,6 +1,6 @@
 # WordPress URL Utilities
 
-Comprehensive URL manipulation, validation, connectivity checking, and tracking parameter removal for WordPress. Clean APIs for single URLs, bulk operations, HTTP status checking, and privacy-focused URL cleaning.
+Comprehensive URL manipulation, validation, connectivity checking, platform detection, and tracking parameter removal for WordPress. Clean APIs for single URLs, bulk operations, HTTP status checking, and privacy-focused URL cleaning.
 
 ## Installation
 
@@ -25,14 +25,23 @@ $domain = URL::get_domain( 'https://example.com/path' ); // example.com
 $path = URL::get_path( 'https://example.com/path' ); // /path
 $extension = URL::get_extension( 'https://example.com/file.pdf' ); // pdf
 
-// Manipulation
-$https_url = URL::to_https( 'http://example.com' );
+// Scheme manipulation (Enhanced!)
+$https_url = URL::to_https( 'example.com' );          // https://example.com
+$http_url = URL::to_http( 'example.com' );            // http://example.com
+$custom_scheme = URL::add_scheme( 'example.com', 'https' ); // https://example.com
+
+// URL manipulation
 $relative = URL::make_relative( 'https://mysite.com/page' ); // /page
 $with_params = URL::add_params( $url, [ 'utm_source' => 'email' ] );
 
 // File type detection
 $is_image = URL::is_image( 'photo.jpg' );
 $is_video = URL::is_video( 'movie.mp4', [ 'mp4', 'avi' ] ); // custom extensions
+
+// Platform detection (NEW!)
+$is_youtube = URL::is_video_platform( 'https://youtube.com/watch?v=abc123' );
+$is_spotify = URL::is_audio_platform( 'https://open.spotify.com/track/123' );
+$is_social = URL::is_social_platform( 'https://facebook.com/page' );
 
 // UTM tracking
 $tracked = URL::add_utm( $url, [
@@ -50,6 +59,55 @@ $html_safe = URL::sanitize_for_html( $user_url );
 // Current page
 $current = URL::current();
 $clean_current = URL::current_clean(); // without query params
+```
+
+### Advanced Platform Detection
+
+```php
+// Enhanced media type detection
+function get_media_type( $url ) {
+    if ( URL::is_video( $url ) || URL::is_video_platform( $url ) ) {
+        return 'video';  // Works for both .mp4 files AND YouTube/TikTok links
+    }
+    
+    if ( URL::is_audio( $url ) || URL::is_audio_platform( $url ) ) {
+        return 'audio';  // Works for both .mp3 files AND Spotify/podcast links
+    }
+    
+    if ( URL::is_image( $url ) ) {
+        return 'image';
+    }
+    
+    if ( URL::is_social_platform( $url ) ) {
+        return 'social';
+    }
+    
+    return 'other';
+}
+
+// Content categorization
+function categorize_urls( $urls ) {
+    $categorized = [
+        'video' => [],
+        'audio' => [],
+        'social' => [],
+        'other' => []
+    ];
+    
+    foreach ( $urls as $url ) {
+        if ( URL::is_video_platform( $url ) ) {
+            $categorized['video'][] = $url;
+        } elseif ( URL::is_audio_platform( $url ) ) {
+            $categorized['audio'][] = $url;
+        } elseif ( URL::is_social_platform( $url ) ) {
+            $categorized['social'][] = $url;
+        } else {
+            $categorized['other'][] = $url;
+        }
+    }
+    
+    return $categorized;
+}
 ```
 
 ### Bulk URL Operations
@@ -146,6 +204,43 @@ Checker::set_default_timeout( 15 ); // seconds
 
 ## Common Use Cases
 
+**Enhanced scheme handling:**
+```php
+// Now handles domain-only URLs!
+$secure_urls = [
+    URL::to_https( 'example.com' ),           // https://example.com
+    URL::to_http( 'secure-site.com' ),       // http://secure-site.com
+    URL::add_scheme( 'api.site.com', 'https' ), // https://api.site.com
+];
+```
+
+**Smart content processing:**
+```php
+// Categorize URLs by platform type
+function process_content_urls( $content ) {
+    $urls = URLs::extract( $content );
+    
+    foreach ( $urls as $url ) {
+        if ( URL::is_video_platform( $url ) ) {
+            // Handle video embeds
+            $content = add_video_wrapper( $content, $url );
+        } elseif ( URL::is_audio_platform( $url ) ) {
+            // Handle audio players
+            $content = add_audio_player( $content, $url );
+        } elseif ( URL::is_social_platform( $url ) ) {
+            // Handle social embeds
+            $content = add_social_embed( $content, $url );
+        }
+        
+        // Clean tracking parameters from all URLs
+        $clean_url = Cleaner::strip( $url );
+        $content = str_replace( $url, $clean_url, $content );
+    }
+    
+    return $content;
+}
+```
+
 **Privacy-focused URL sharing:**
 ```php
 // Clean URLs before sharing to protect user privacy
@@ -204,28 +299,74 @@ $campaign_url = URL::add_utm_smart( 'https://mysite.com/sale', [
 
 **WordPress Integration Examples:**
 ```php
-// Clean URLs when saving posts
-function clean_post_urls( $content ) {
-    return Cleaner::clean_content( $content );
-}
-add_filter( 'the_content', 'clean_post_urls' );
-
-// Clean user-submitted URLs
-function process_user_url( $url ) {
-    if ( URL::is_valid( $url ) ) {
+// Categorize and clean URLs when saving posts
+function process_post_urls( $content ) {
+    $urls = URLs::extract( $content );
+    
+    foreach ( $urls as $url ) {
+        // Clean tracking parameters
         $clean_url = Cleaner::strip( $url );
-        return URL::sanitize( $clean_url );
+        
+        // Ensure HTTPS for external links
+        if ( URL::is_external( $clean_url ) ) {
+            $clean_url = URL::to_https( $clean_url );
+        }
+        
+        // Replace in content
+        $content = str_replace( $url, $clean_url, $content );
     }
-    return '';
+    
+    return $content;
 }
+add_filter( 'content_save_pre', 'process_post_urls' );
 
-// Combine operations for complete URL processing
-$processed_url = URL::make_relative(
+// Auto-embed platform content
+function auto_embed_platforms( $content ) {
+    $urls = URLs::extract( $content );
+    
+    foreach ( $urls as $url ) {
+        if ( URL::is_video_platform( $url ) && ! URL::supports_oembed( $url ) ) {
+            // Custom video embed logic
+        } elseif ( URL::is_audio_platform( $url ) ) {
+            // Custom audio player logic
+        }
+    }
+    
+    return $content;
+}
+add_filter( 'the_content', 'auto_embed_platforms' );
+
+// Enhanced URL processing pipeline
+$processed_url = URL::sanitize_for_html(
     URL::to_https(
         Cleaner::strip( $original_url )
     )
 );
 ```
+
+## Platform Coverage
+
+### Video Platforms (30+ supported)
+**Major**: YouTube, Vimeo, TikTok, Instagram, Facebook Watch  
+**Streaming**: Twitch, Dailymotion, Rumble, BitChute  
+**Business**: Wistia, JW Player, Brightcove, Vidyard, Loom  
+**International**: Youku, Bilibili (Chinese), VK, OK.ru (Russian)  
+**Other**: Twitter videos, Reddit videos, Archive.org
+
+### Audio Platforms (25+ supported)
+**Music**: Spotify, Apple Music, YouTube Music, Deezer, Tidal, SoundCloud  
+**Podcasts**: Apple Podcasts, Google Podcasts, Anchor, Overcast, Stitcher  
+**Radio**: TuneIn, iHeart Radio, Pandora  
+**International**: NetEase Music, QQ Music (Chinese)  
+**Other**: Bandcamp, AudioMack, Last.fm, Mixcloud
+
+### Social Media Platforms (40+ supported)
+**Major**: Facebook, Twitter/X, Instagram, LinkedIn, TikTok, Snapchat  
+**Messaging**: WhatsApp, Telegram, Discord, WeChat, LINE  
+**Communities**: Reddit, Pinterest, Tumblr, Mastodon, Threads  
+**Professional**: Behance, Dribbble, Stack Overflow  
+**International**: VK, Weibo, Xiaohongshu (Chinese)  
+**Other**: Nextdoor, Goodreads, Flickr, Meetup
 
 ## Tracking Parameter Coverage
 
@@ -254,8 +395,9 @@ The `Cleaner` class removes **300+ tracking parameters** from:
 ### URL Class
 - `is_valid()`, `is_external()`, `is_https()`, `is_same_domain()`
 - `get_domain()`, `get_path()`, `get_query()`, `get_extension()`
-- `add_params()`, `remove_params()`, `to_https()`, `make_relative()`
+- `add_params()`, `remove_params()`, `add_scheme()`, `to_https()`, `to_http()`, `make_relative()`
 - `is_image()`, `is_video()`, `is_audio()` (with custom extensions)
+- `is_video_platform()`, `is_audio_platform()`, `is_social_platform()` ⭐ **NEW**
 - `add_utm()`, `add_utm_smart()`, `sanitize()`, `current()`
 
 ### URLs Class
